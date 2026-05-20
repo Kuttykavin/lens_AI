@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active = "settings" %}
+<div class="page fade-in">
+
+  <a href="/settings" style="display:inline-flex;align-items:center;gap:6px;color:var(--gray);
+     text-decoration:none;font-size:0.82rem;margin-bottom:16px;">
+    ← Back to Settings
+  </a>
+
+  <div class="section-title">Integrity Check</div>
+
+  {% if tampered %}
+  <div style="background:#1a0505;border:1px solid #ff336650;border-radius:14px;
+              padding:24px;text-align:center;margin-bottom:16px;" class="glow-red">
+    <div style="font-size:3rem;">⚠️</div>
+    <div style="font-size:1.1rem;font-weight:800;color:var(--red);margin-top:10px;">Tampering Detected</div>
+    <div style="font-size:0.82rem;color:var(--white);margin-top:6px;opacity:0.8;">
+      {{ tampered|length }} record(s) have been tampered with.
+    </div>
+    <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
+      {% for id in tampered %}
+      <span style="background:#ff336625;color:var(--red);padding:5px 12px;border-radius:20px;
+                   font-size:0.78rem;border:1px solid #ff336640;">Record #{{ id }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div style="background:#051a0d;border:1px solid #00ff8850;border-radius:14px;
+              padding:24px;text-align:center;margin-bottom:16px;" class="glow-green">
+    <div style="font-size:3rem;">✅</div>
+    <div style="font-size:1.1rem;font-weight:800;color:var(--green);margin-top:10px;">All Records Intact</div>
+    <div style="font-size:0.82rem;color:var(--white);margin-top:6px;opacity:0.8;">
+      No tampering detected. All evidence hashes verified successfully.
+    </div>
+  </div>
+  {% endif %}
+
+  <a href="/integrity" class="btn btn-gray btn-block" style="justify-content:center;margin-bottom:8px;">
+    🔄 Run Check Again
+  </a>
+  <a href="/settings" class="btn btn-accent btn-block" style="justify-content:center;">
+    ← Back to Settings
+  </a>
+</div>
+{% endblock %}

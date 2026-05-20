@@ -1,0 +1,415 @@
+﻿{% extends "base.html" %}
+{% block content %}
+{% set active = "dashboard" %}
+<div class="page fade-in">
+
+  <!-- Threat level banner -->
+  {% set high = stats.by_severity.get('High', 0) %}
+  {% if high > 0 %}
+    {% set level = "high" %}{% set level_icon = "🔴" %}{% set level_text = "High Threat Activity" %}{% set level_color = "#ff3366" %}
+  {% elif stats.today > 0 %}
+    {% set level = "medium" %}{% set level_icon = "🟡" %}{% set level_text = "Activity Detected Today" %}{% set level_color = "#ff9500" %}
+  {% else %}
+    {% set level = "safe" %}{% set level_icon = "🟢" %}{% set level_text = "All Clear" %}{% set level_color = "#00ff88" %}
+  {% endif %}
+
+  <div class="threat-banner level-{{ level }}">
+    <div class="threat-content">
+      <div class="threat-label">Threat Level</div>
+      <div class="threat-status">{{ level_icon }} {{ level_text }}</div>
+      {% if stats.latest %}
+      <div class="threat-time">Last: {{ stats.latest.timestamp }}</div>
+      {% endif %}
+    </div>
+    <div class="threat-count">
+      <div class="threat-number">{{ stats.today }}</div>
+      <div class="threat-period">TODAY</div>
+    </div>
+    <div class="threat-pulse"></div>
+  </div>
+
+  <!-- Protection toggle -->
+  <div class="toggle-wrap" id="toggle-card">
+    <div>
+      <div class="toggle-label" id="toggle-label">Protection Active</div>
+      <div class="toggle-sub" id="toggle-sub">Tap to pause detection</div>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" id="protection-toggle" checked onchange="toggleProtection(this)">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="section-title">Overview</div>
+  <div class="stat-grid">
+    <div class="card stat-card" data-color="accent">
+      <div class="stat-icon">📊</div>
+      <div class="card-title">Total Threats</div>
+      <div class="card-value" style="color:var(--accent)">{{ stats.total }}</div>
+      <div class="card-sub">All time detections</div>
+    </div>
+    <div class="card stat-card" data-color="red">
+      <div class="stat-icon">⚠️</div>
+      <div class="card-title">Confirmed</div>
+      <div class="card-value" style="color:var(--red)">{{ stats.by_status.get('Confirmed', 0) }}</div>
+      <div class="card-sub">Verified threats</div>
+    </div>
+    <div class="card stat-card" data-color="orange">
+      <div class="stat-icon">🔔</div>
+      <div class="card-title">False Alarms</div>
+      <div class="card-value" style="color:var(--orange)">{{ stats.by_status.get('False Alarm', 0) }}</div>
+      <div class="card-sub">Dismissed alerts</div>
+    </div>
+    <div class="card stat-card" data-color="green">
+      <div class="stat-icon">⏳</div>
+      <div class="card-title">Pending</div>
+      <div class="card-value" style="color:var(--green)">{{ stats.by_status.get('Pending', 0) }}</div>
+      <div class="card-sub">Awaiting review</div>
+    </div>
+  </div>
+
+  <!-- Severity breakdown -->
+  <div class="section-title">Severity Breakdown</div>
+  <div class="card">
+    {% set total = stats.total or 1 %}
+    {% for label, val, color in [
+        ('High',   stats.by_severity.get('High', 0),   '#ff3366'),
+        ('Medium', stats.by_severity.get('Medium', 0), '#ff9500'),
+        ('Low',    stats.by_severity.get('Low', 0),    '#00ff88')
+    ] %}
+    <div style="margin-bottom:{% if not loop.last %}16px{% else %}0{% endif %};">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:{{ color }};"></div>
+          <span style="font-size:0.82rem;color:{{ color }};font-weight:700;">{{ label }}</span>
+        </div>
+        <span style="font-size:0.82rem;color:var(--white);font-weight:800;">{{ val }}
+          <span style="color:var(--gray);font-weight:400;font-size:0.72rem;">({{ (val / total * 100)|int }}%)</span>
+        </span>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar" style="width:{{ (val / total * 100)|int }}%;background:{{ color }};"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- 7-day timeline -->
+  <div class="section-title">7-Day Timeline</div>
+  <div class="card">
+    {% if stats.by_date %}
+      {% set max_val = stats.by_date | map(attribute=1) | max %}
+      {% for date, count in stats.by_date %}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:{% if not loop.last %}10px{% else %}0{% endif %};">
+        <span style="font-size:0.72rem;color:var(--gray);width:44px;flex-shrink:0;font-weight:600;">{{ date[-5:] }}</span>
+        <div style="flex:1;background:var(--bg3);border-radius:6px;height:26px;overflow:hidden;">
+          <div style="width:{{ [1, (count / max_val * 100)|int]|max }}%;height:100%;
+                      background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:6px;">
+          </div>
+        </div>
+        <span style="font-size:0.82rem;font-weight:800;color:var(--white);width:22px;text-align:right;">{{ count }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty"><div class="empty-icon">📊</div><p>No data yet</p></div>
+    {% endif %}
+  </div>
+
+  <!-- Threat Analytics — Stock Market Style -->
+  <div class="section-title">Threat Analytics</div>
+  <div class="chart-panel">
+
+    <!-- Header: live clock + live dot -->
+    <div class="chart-header">
+      <div class="chart-live-badge">
+        <span class="chart-live-dot"></span> LIVE
+      </div>
+      <div class="chart-clock" id="chart-clock">--:--:--</div>
+    </div>
+
+    <!-- Tab switcher -->
+    <div class="chart-tabs">
+      <button class="chart-tab active" onclick="switchTab('day',this)">TODAY</button>
+      <button class="chart-tab" onclick="switchTab('week',this)">7 DAYS</button>
+      <button class="chart-tab" onclick="switchTab('month',this)">30 DAYS</button>
+    </div>
+
+    <!-- Stat pills -->
+    <div class="chart-pills">
+      <div class="chart-pill">
+        <div class="chart-pill-label">TOTAL</div>
+        <div class="chart-pill-val" id="cp-total">0</div>
+      </div>
+      <div class="chart-pill">
+        <div class="chart-pill-label">PEAK</div>
+        <div class="chart-pill-val" id="cp-peak">0</div>
+      </div>
+      <div class="chart-pill">
+        <div class="chart-pill-label">AVG</div>
+        <div class="chart-pill-val" id="cp-avg">0.0</div>
+      </div>
+    </div>
+
+    <!-- Chart.js canvas -->
+    <div style="position:relative;height:180px;">
+      <canvas id="threatChart"></canvas>
+    </div>
+
+  </div>
+
+  <!-- Export -->
+  <div class="section-title">Export Data</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+    <a href="/export/csv" class="btn btn-gray" style="justify-content:center;">📄 CSV</a>
+    <a href="/export/zip" class="btn btn-gray" style="justify-content:center;">📦 ZIP</a>
+  </div>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── Protection toggle ──────────────────────────────────────────────────────
+function toggleProtection(el) {
+  fetch('/api/toggle', { method:'POST' })
+    .then(r => r.json())
+    .then(d => {
+      const label = document.getElementById('toggle-label');
+      const sub   = document.getElementById('toggle-sub');
+      const card  = document.getElementById('toggle-card');
+      if (d.active) {
+        label.textContent = 'Protection Active';
+        sub.textContent   = 'Tap to pause detection';
+        card.style.borderColor = '';
+      } else {
+        label.textContent = 'Protection Paused';
+        sub.textContent   = 'Tap to resume detection';
+        card.style.borderColor = 'var(--red)';
+      }
+    });
+}
+
+// ── Live clock ─────────────────────────────────────────────────────────────
+function tickClock() {
+  const el = document.getElementById('chart-clock');
+  if (el) el.textContent = new Date().toLocaleTimeString('en-GB');
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+// ── Chart setup ────────────────────────────────────────────────────────────
+let currentTab = 'day';
+let chartData  = { day: [], week: [], month: [] };
+let myChart    = null;
+
+const ctx = document.getElementById('threatChart').getContext('2d');
+
+// Gradient fill
+function makeGradient() {
+  const g = ctx.createLinearGradient(0, 0, 0, 180);
+  g.addColorStop(0,   'rgba(0,212,255,0.35)');
+  g.addColorStop(0.5, 'rgba(123,47,255,0.15)');
+  g.addColorStop(1,   'rgba(0,0,0,0)');
+  return g;
+}
+
+myChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'Threats',
+      data: [],
+      borderColor: '#00d4ff',
+      borderWidth: 2.5,
+      pointBackgroundColor: '#00d4ff',
+      pointBorderColor: '#07070f',
+      pointBorderWidth: 2,
+      pointRadius: 3,
+      pointHoverRadius: 6,
+      pointHoverBackgroundColor: '#fff',
+      fill: true,
+      backgroundColor: makeGradient(),
+      tension: 0.4,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 600, easing: 'easeInOutQuart' },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(7,7,15,0.95)',
+        borderColor: '#00d4ff',
+        borderWidth: 1,
+        titleColor: '#00d4ff',
+        bodyColor: '#e8e8ff',
+        padding: 10,
+        cornerRadius: 8,
+        callbacks: {
+          label: ctx => ` ${ctx.parsed.y} threat${ctx.parsed.y !== 1 ? 's' : ''}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+        ticks: {
+          color: '#4a4a6a',
+          font: { size: 10, weight: '600' },
+          maxRotation: 0,
+          maxTicksLimit: 8,
+        },
+        border: { display: false }
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: 'rgba(255,255,255,0.06)', drawBorder: false },
+        ticks: {
+          color: '#4a4a6a',
+          font: { size: 10 },
+          stepSize: 1,
+          maxTicksLimit: 5,
+        },
+        border: { display: false }
+      }
+    }
+  }
+});
+
+function switchTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderChart();
+}
+
+// Build full 24-slot day array
+function buildDaySlots(raw) {
+  const map = {};
+  raw.forEach(([h, c]) => { map[String(h).padStart(2,'0')] = c; });
+  return Array.from({length:24}, (_, i) => {
+    const h = String(i).padStart(2,'0');
+    return { label: h+':00', count: map[h] || 0 };
+  });
+}
+
+// Build full 7-slot week array
+function buildWeekSlots(raw) {
+  const map = {};
+  raw.forEach(([d, c]) => { map[d] = c; });
+  return Array.from({length:7}, (_, i) => {
+    const dt = new Date();
+    dt.setDate(dt.getDate() - (6 - i));
+    const key = dt.toISOString().slice(0,10);
+    return { label: dt.toLocaleDateString('en-GB',{weekday:'short'}), count: map[key]||0 };
+  });
+}
+
+// Build full 30-slot month array
+function buildMonthSlots(raw) {
+  const map = {};
+  raw.forEach(([d, c]) => { map[d] = c; });
+  return Array.from({length:30}, (_, i) => {
+    const dt = new Date();
+    dt.setDate(dt.getDate() - (29 - i));
+    const key = dt.toISOString().slice(0,10);
+    return { label: dt.getDate()+'/'+(dt.getMonth()+1), count: map[key]||0 };
+  });
+}
+
+function renderChart() {
+  const raw = chartData[currentTab] || [];
+  let slots;
+  if (currentTab === 'day')   slots = buildDaySlots(raw);
+  if (currentTab === 'week')  slots = buildWeekSlots(raw);
+  if (currentTab === 'month') slots = buildMonthSlots(raw);
+
+  const total = slots.reduce((s,x) => s + x.count, 0);
+  const peak  = Math.max(...slots.map(x => x.count), 0);
+  const avg   = slots.length ? (total / slots.length).toFixed(1) : '0.0';
+
+  animateNum('cp-total', total);
+  animateNum('cp-peak',  peak);
+  document.getElementById('cp-avg').textContent = avg;
+
+  // Update chart
+  myChart.data.labels   = slots.map(s => s.label);
+  myChart.data.datasets[0].data = slots.map(s => s.count);
+  myChart.data.datasets[0].backgroundColor = makeGradient();
+
+  // Color: red if any high threats, else cyan
+  const hasHigh = (chartData.day || []).some(([,c]) => c > 0);
+  myChart.data.datasets[0].borderColor = total > 0 ? '#00d4ff' : '#2a2a4a';
+  myChart.data.datasets[0].pointBackgroundColor = total > 0 ? '#00d4ff' : '#2a2a4a';
+  myChart.update();
+}
+
+function animateNum(id, target) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = parseInt(el.textContent) || 0;
+  if (start === target) return;
+  let count = 0;
+  const t = setInterval(() => {
+    count++;
+    el.textContent = Math.round(start + (target - start) * (count / 20));
+    if (count >= 20) { el.textContent = target; clearInterval(t); }
+  }, 25);
+}
+
+// ── Poll every 5s ──────────────────────────────────────────────────────────
+function pollAll() {
+  fetch('/api/status')
+    .then(r => r.json())
+    .then(d => {
+      const s = d.stats;
+      if (!s) return;
+
+      chartData.day   = s.by_hour  || [];
+      chartData.week  = s.by_date  || [];
+      chartData.month = s.by_month || [];
+      renderChart();
+
+      // Threat banner
+      const high = (s.by_severity && s.by_severity['High']) || 0;
+      const banner   = document.querySelector('.threat-banner');
+      const numEl    = document.querySelector('.threat-number');
+      const statusEl = document.querySelector('.threat-status');
+      if (banner && numEl) {
+        numEl.textContent = s.today;
+        if (high > 0) {
+          banner.className = 'threat-banner level-high';
+          if (statusEl) statusEl.textContent = '🔴 High Threat Activity';
+        } else if (s.today > 0) {
+          banner.className = 'threat-banner level-medium';
+          if (statusEl) statusEl.textContent = '🟡 Activity Detected Today';
+        } else {
+          banner.className = 'threat-banner level-safe';
+          if (statusEl) statusEl.textContent = '🟢 All Clear';
+        }
+      }
+
+      // Protection toggle
+      const tog   = document.getElementById('protection-toggle');
+      const label = document.getElementById('toggle-label');
+      const sub   = document.getElementById('toggle-sub');
+      const card  = document.getElementById('toggle-card');
+      if (tog) tog.checked = d.active;
+      if (d.active) {
+        if (label) label.textContent = 'Protection Active';
+        if (sub)   sub.textContent   = 'Tap to pause detection';
+        if (card)  card.style.borderColor = '';
+      } else {
+        if (label) label.textContent = 'Protection Paused';
+        if (sub)   sub.textContent   = 'Tap to resume detection';
+        if (card)  card.style.borderColor = 'var(--red)';
+      }
+    }).catch(() => {});
+}
+
+pollAll();
+setInterval(pollAll, 5000);
+</script>
+{% endblock %}

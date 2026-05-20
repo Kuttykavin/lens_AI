@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active = "settings" %}
+
+<!-- Toast notification -->
+<div id="toast" style="position:fixed;top:70px;right:16px;z-index:999;
+     background:#00ff8822;border:1px solid var(--green);color:var(--green);
+     padding:10px 18px;border-radius:10px;font-size:0.82rem;font-weight:700;
+     opacity:0;transition:opacity 0.3s;pointer-events:none;">
+  ✅ Settings saved
+</div>
+<div class="page fade-in">
+
+  <div class="section-title">Settings</div>
+
+  <!-- System info -->
+  <div class="section-title">System Info</div>
+  <div class="card">
+    <div class="info-row">
+      <span class="info-key">Version</span>
+      <span class="info-value" style="color:var(--accent);">v{{ info.version }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Hostname</span>
+      <span class="info-value">{{ info.hostname }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Local IP</span>
+      <span class="info-value" style="color:var(--accent);font-family:monospace;">{{ info.local_ip }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Admin User</span>
+      <span class="info-value">{{ info.username }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Alert Email</span>
+      <span class="info-value" style="color:var(--green);">{{ info.masked_email }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Evidence Records</span>
+      <span class="info-value" style="color:var(--green);">{{ info.evidence_count }}</span>
+    </div>
+  </div>
+
+  <!-- Protection control -->
+  <div class="section-title">Protection Control</div>
+  <div class="toggle-wrap" id="settings-toggle-card">
+    <div>
+      <div class="toggle-label" id="settings-toggle-label">Protection Active</div>
+      <div class="toggle-sub" id="settings-toggle-sub">Phone detection is running</div>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" id="settings-protection-toggle" checked onchange="toggleProtection(this)">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+
+  <!-- Detection sensitivity + email config form -->
+  <form method="POST" action="/settings/save">
+
+    <!-- Detection sensitivity -->
+    <div class="section-title">Detection Sensitivity</div>
+    <div class="card">
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div>
+            <div style="font-size:0.85rem;font-weight:700;color:var(--white);">Confidence Threshold</div>
+            <div style="font-size:0.72rem;color:var(--gray);margin-top:2px;">Higher = less sensitive, fewer false alarms</div>
+          </div>
+          <span style="font-size:1rem;font-weight:800;color:var(--accent);min-width:40px;text-align:right;"
+                id="conf-val">{{ (info.conf_threshold|float * 100)|int }}%</span>
+        </div>
+        <input type="range" name="conf_threshold" min="0.1" max="0.9" step="0.05"
+               value="{{ info.conf_threshold }}" id="conf-slider"
+               oninput="document.getElementById('conf-val').textContent = Math.round(this.value*100)+'%'"
+               style="width:100%;accent-color:var(--accent);height:6px;cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span style="font-size:0.68rem;color:var(--gray);">10% (sensitive)</span>
+          <span style="font-size:0.68rem;color:var(--gray);">90% (strict)</span>
+        </div>
+      </div>
+
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div>
+            <div style="font-size:0.85rem;font-weight:700;color:var(--white);">Confirm Frames</div>
+            <div style="font-size:0.72rem;color:var(--gray);margin-top:2px;">Frames needed before triggering lockdown</div>
+          </div>
+          <span style="font-size:1rem;font-weight:800;color:var(--accent2);min-width:30px;text-align:right;"
+                id="frames-val">{{ info.confirm_frames }}</span>
+        </div>
+        <input type="range" name="confirm_frames" min="1" max="10" step="1"
+               value="{{ info.confirm_frames }}" id="frames-slider"
+               oninput="document.getElementById('frames-val').textContent = this.value"
+               style="width:100%;accent-color:var(--accent2);height:6px;cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span style="font-size:0.68rem;color:var(--gray);">1 (instant)</span>
+          <span style="font-size:0.68rem;color:var(--gray);">10 (slow)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lockdown PIN -->
+    <div class="section-title">Lockdown PIN</div>
+    <div class="card">
+      <div class="toggle-wrap" style="background:transparent;border:none;padding:0;margin-bottom:16px;">
+        <div>
+          <div style="font-size:0.85rem;font-weight:700;color:var(--white);">Require PIN to Resume</div>
+          <div style="font-size:0.72rem;color:var(--gray);margin-top:2px;">After lockdown, PIN must be entered to resume</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" name="lockdown_pin_enabled" id="pin-toggle"
+                 {% if info.lockdown_pin_enabled == '1' %}checked{% endif %}
+                 onchange="togglePinField(this)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="pin-field" style="{% if info.lockdown_pin_enabled != '1' %}display:none;{% endif %}">
+        <div style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:1px;
+                    text-transform:uppercase;margin-bottom:6px;">
+          {% if info.lockdown_pin_set %}Change PIN{% else %}Set PIN{% endif %}
+        </div>
+        <input type="password" name="lockdown_pin" inputmode="numeric"
+               placeholder="{% if info.lockdown_pin_set %}Leave blank to keep current PIN{% else %}Enter 4–6 digit PIN{% endif %}"
+               maxlength="6"
+               style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+                      padding:11px 14px;color:var(--white);font-size:1.2rem;letter-spacing:6px;
+                      outline:none;text-align:center;">
+        {% if info.lockdown_pin_set %}
+        <div style="font-size:0.72rem;color:var(--green);margin-top:6px;">✅ PIN is currently set</div>
+        {% else %}
+        <div style="font-size:0.72rem;color:var(--orange);margin-top:6px;">⚠ No PIN set yet</div>
+        {% endif %}
+        <div style="background:#0d1a0d;border-radius:8px;padding:10px 12px;margin-top:10px;
+                    border-left:3px solid var(--accent2);">
+          <div style="font-size:0.72rem;color:var(--gray);line-height:1.6;">
+            PIN is required to dismiss the lockdown screen.<br>
+            Use 4–6 digits. Stored encrypted.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Email alerts -->
+    <div class="section-title">Email Alerts</div>
+    <div class="card">
+      <div class="toggle-wrap" style="background:transparent;border:none;padding:0;margin-bottom:16px;">
+        <div>
+          <div style="font-size:0.85rem;font-weight:700;color:var(--white);">Send Email on Threat</div>
+          <div style="font-size:0.72rem;color:var(--gray);margin-top:2px;">Alert sent to your registered email</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" name="email_alerts" id="email-alerts-toggle"
+                 {% if info.email_alerts == '1' %}checked{% endif %}
+                 onchange="toggleEmailFields(this)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div id="smtp-fields" style="{% if info.email_alerts != '1' %}display:none;{% endif %}">
+        <div style="margin-bottom:12px;">
+          <div style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:1px;
+                      text-transform:uppercase;margin-bottom:6px;">SMTP Host</div>
+          <input type="text" name="smtp_host" value="{{ info.smtp_host }}"
+                 placeholder="smtp.gmail.com"
+                 style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+                        padding:11px 14px;color:var(--white);font-size:0.88rem;outline:none;">
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:1px;
+                      text-transform:uppercase;margin-bottom:6px;">SMTP Port</div>
+          <input type="number" name="smtp_port" value="{{ info.smtp_port }}"
+                 placeholder="587"
+                 style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+                        padding:11px 14px;color:var(--white);font-size:0.88rem;outline:none;">
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:1px;
+                      text-transform:uppercase;margin-bottom:6px;">Sender Email (Gmail)</div>
+          <input type="email" name="smtp_user" value="{{ info.smtp_user }}"
+                 placeholder="youremail@gmail.com"
+                 style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+                        padding:11px 14px;color:var(--white);font-size:0.88rem;outline:none;">
+        </div>
+        <div style="margin-bottom:4px;">
+          <div style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:1px;
+                      text-transform:uppercase;margin-bottom:6px;">App Password</div>
+          <input type="password" name="smtp_pass"
+                 placeholder="Leave blank to keep existing"
+                 style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+                        padding:11px 14px;color:var(--white);font-size:0.88rem;outline:none;">
+        </div>
+        <div style="background:#0d1a0d;border-radius:8px;padding:10px 12px;margin-top:10px;
+                    border-left:3px solid var(--green);">
+          <div style="font-size:0.72rem;color:var(--green);font-weight:700;margin-bottom:3px;">Gmail Setup</div>
+          <div style="font-size:0.72rem;color:var(--gray);line-height:1.6;">
+            Use a Gmail App Password, not your regular password.<br>
+            Enable 2FA → Google Account → Security → App Passwords.
+          </div>
+        </div>
+        <button type="button" onclick="sendTestEmail()"
+                class="btn btn-green" style="width:100%;justify-content:center;margin-top:12px;">
+          📧 Send Test Email
+        </button>
+        <div id="test-email-result" style="font-size:0.78rem;text-align:center;margin-top:8px;display:none;"></div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-accent btn-block" style="justify-content:center;margin-bottom:16px;">
+      💾 Save Settings
+    </button>
+  </form>
+
+  <!-- Tools -->
+  <div class="section-title">Tools</div>
+  <a href="/integrity" class="btn btn-gray btn-block" style="justify-content:center;margin-bottom:8px;">
+    🔍 Run Integrity Check
+  </a>
+  <a href="/audit" class="btn btn-gray btn-block" style="justify-content:center;margin-bottom:8px;">
+    📜 View Audit Log
+  </a>
+
+  <!-- Export -->
+  <div class="section-title">Export Evidence</div>
+  <a href="/export/csv" class="btn btn-gray btn-block" style="justify-content:center;margin-bottom:8px;">
+    📄 Download CSV
+  </a>
+  <a href="/export/zip" class="btn btn-gray btn-block" style="justify-content:center;margin-bottom:8px;">
+    📦 Download ZIP (images + CSV)
+  </a>
+
+  <!-- Session -->
+  <div class="section-title">Session</div>
+  <a href="/logout" class="btn btn-red btn-block" style="justify-content:center;">
+    🚪 Logout
+  </a>
+
+  <!-- Contact -->
+  <div class="section-title">Support</div>
+  <a href="mailto:mrtechieguys@gmail.com?subject=ScreenSentry%20Support&body=Hi%2C%20I%20need%20help%20with%20ScreenSentry."
+     class="btn btn-gray btn-block" style="justify-content:center;">
+    📧 Contact Developer
+  </a>
+
+</div>
+<script>
+function toggleProtection(el) {
+  fetch('/api/toggle', { method:'POST' })
+    .then(r => r.json())
+    .then(d => {
+      const label = document.getElementById('settings-toggle-label');
+      const sub   = document.getElementById('settings-toggle-sub');
+      const card  = document.getElementById('settings-toggle-card');
+      if (d.active) {
+        label.textContent = 'Protection Active';
+        sub.textContent   = 'Phone detection is running';
+        card.style.borderColor = '';
+      } else {
+        label.textContent = 'Protection Paused';
+        sub.textContent   = 'Detection is currently off';
+        card.style.borderColor = 'var(--red)';
+      }
+    });
+}
+
+function toggleEmailFields(el) {
+  document.getElementById('smtp-fields').style.display = el.checked ? 'block' : 'none';
+}
+
+function togglePinField(el) {
+  document.getElementById('pin-field').style.display = el.checked ? 'block' : 'none';
+}
+
+function sendTestEmail() {
+  const btn    = event.target;
+  const result = document.getElementById('test-email-result');
+  btn.textContent = '⏳ Sending...';
+  btn.disabled    = true;
+  result.style.display = 'none';
+
+  fetch('/api/test_email', { method:'POST' })
+    .then(r => r.json())
+    .then(d => {
+      result.style.display  = 'block';
+      result.style.color    = d.ok ? 'var(--green)' : 'var(--red)';
+      result.textContent    = d.msg;
+      btn.textContent       = '📧 Send Test Email';
+      btn.disabled          = false;
+    })
+    .catch(e => {
+      result.style.display = 'block';
+      result.style.color   = 'var(--red)';
+      result.textContent   = 'Request failed: ' + e;
+      btn.textContent      = '📧 Send Test Email';
+      btn.disabled         = false;
+    });
+}
+
+fetch('/api/status').then(r=>r.json()).then(d => {
+  const tog = document.getElementById('settings-protection-toggle');
+  if (tog) tog.checked = d.active;
+  if (!d.active) {
+    document.getElementById('settings-toggle-label').textContent = 'Protection Paused';
+    document.getElementById('settings-toggle-sub').textContent   = 'Detection is currently off';
+    document.getElementById('settings-toggle-card').style.borderColor = 'var(--red)';
+  }
+});
+
+// Show toast if redirected after save
+if (window.location.search.includes('saved=1')) {
+  const t = document.getElementById('toast');
+  t.style.opacity = '1';
+  setTimeout(() => t.style.opacity = '0', 3000);
+  history.replaceState(null, '', '/settings');
+}
+</script>
+{% endblock %}

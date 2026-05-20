@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active = "evidence" %}
+<div class="page fade-in">
+
+  <button class="back-btn" onclick="goBack()">
+    <span class="back-arrow">‹</span> Back
+  </button>
+
+<style>
+.page { transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s ease; }
+.page.slide-out {
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+</style>
+
+<script>
+function goBack() {
+  const page = document.querySelector('.page');
+  page.classList.add('slide-out');
+  setTimeout(() => { window.location.href = '/evidence'; }, 320);
+}
+</script>
+
+  <div class="section-title">Evidence #{{ rec.id }}</div>
+
+  <!-- Full image -->
+  {% set fname = rec.image_path.replace('\\','/').split('/')[-1] %}
+  <div class="card" style="padding:0;overflow:hidden;margin-bottom:14px;">
+    <img src="/image/{{ fname }}" alt="Evidence"
+         style="width:100%;display:block;max-height:300px;object-fit:contain;background:#0a0a14;"
+         onerror="this.outerHTML='<div style=padding:40px;text-align:center;color:var(--gray);font-size:3rem;>📷</div>'">
+  </div>
+
+  <!-- Metadata -->
+  <div class="section-title">Details</div>
+  <div class="card">
+    <div class="info-row">
+      <span class="info-key">Record ID</span>
+      <span class="info-value">#{{ rec.id }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Timestamp</span>
+      <span class="info-value">{{ rec.timestamp }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Severity</span>
+      <span class="info-value">
+        <span class="badge badge-{{ rec.severity.lower() }}">{{ rec.severity }}</span>
+      </span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Status</span>
+      <span class="info-value">
+        <span class="badge badge-{{ rec.status.lower().replace(' ','') }}">{{ rec.status }}</span>
+      </span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Confidence</span>
+      <span class="info-value" style="color:{% if rec.confidence >= 0.75 %}var(--red){% elif rec.confidence >= 0.5 %}var(--orange){% else %}var(--green){% endif %};">
+        {{ "%.1f"|format(rec.confidence * 100) }}%
+      </span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Image File</span>
+      <span class="info-value" style="font-size:0.72rem;">{{ fname }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Hash (SHA256)</span>
+      <span class="info-value" style="font-size:0.65rem;font-family:monospace;">{{ rec.hash[:24] }}...</span>
+    </div>
+  </div>
+
+  <!-- Confidence bar -->
+  <div class="card">
+    <div class="card-title">Detection Confidence</div>
+    <div style="margin-top:8px;">
+      <div class="progress-wrap" style="height:14px;border-radius:8px;">
+        <div class="progress-bar" style="width:{{ "%.0f"|format(rec.confidence * 100) }}%;
+          background:{% if rec.confidence >= 0.75 %}var(--red){% elif rec.confidence >= 0.5 %}var(--orange){% else %}var(--green){% endif %};
+          border-radius:8px;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;">
+        <span style="font-size:0.7rem;color:var(--gray);">0%</span>
+        <span style="font-size:0.82rem;font-weight:800;color:var(--white);">{{ "%.1f"|format(rec.confidence * 100) }}%</span>
+        <span style="font-size:0.7rem;color:var(--gray);">100%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="section-title">Actions</div>
+  <a href="/evidence/{{ rec.id }}/status/Confirmed"   class="btn btn-green btn-block">✅ Mark as Confirmed</a>
+  <a href="/evidence/{{ rec.id }}/status/False Alarm" class="btn btn-orange btn-block">❌ Mark as False Alarm</a>
+  <a href="/evidence/{{ rec.id }}/delete" class="btn btn-red btn-block"
+     onclick="return confirm('Move to recycle bin?')">🗑 Move to Recycle Bin</a>
+
+  <div class="section-title">Download</div>
+  <a href="/evidence/{{ rec.id }}/download/jpg" class="btn btn-gray btn-block">📷 Download JPG</a>
+  <a href="/evidence/{{ rec.id }}/download/pdf" class="btn btn-gray btn-block">📄 Download PDF Report</a>
+
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+ultralytics
+opencv-python
+keyboard
+pystray
+pillow
+flask
+bcrypt
+cryptography
+python-pptx
+reportlab
+psutil

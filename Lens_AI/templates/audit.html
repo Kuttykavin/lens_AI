@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active = "audit" %}
+<div class="page fade-in">
+
+  <div class="section-title">Audit Log</div>
+
+  {% if logs %}
+    {% for log in logs %}
+    <div class="log-item fade-in"
+         style="border-left-color:{% if 'Login' in log.action %}var(--accent){% elif 'Delete' in log.action or 'Tamper' in log.action %}var(--red){% elif 'Captured' in log.action %}var(--orange){% elif 'Restored' in log.action or 'Registered' in log.action %}var(--green){% else %}var(--accent2){% endif %};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="log-action">{{ log.action }}</div>
+        <span style="font-size:0.65rem;color:var(--gray);white-space:nowrap;margin-left:8px;">#{{ log.id }}</span>
+      </div>
+      {% if log.details %}
+      <div class="log-detail">{{ log.details }}</div>
+      {% endif %}
+      <div class="log-time">🕐 {{ log.timestamp }}</div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="empty-icon">📜</div>
+      <p>No audit logs yet.</p>
+    </div>
+  {% endif %}
+</div>
+<script>setTimeout(() => location.reload(), 20000);</script>
+{% endblock %}

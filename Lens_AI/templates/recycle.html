@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active = "recycle" %}
+<div class="page fade-in">
+
+  <div class="section-title">Recycle Bin ({{ records|length }})</div>
+
+  {% if records %}
+    <div class="card" style="background:#2a0a0a;border-color:#ff336630;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:1.2rem;">⚠️</span>
+        <span style="font-size:0.8rem;color:var(--red);">Permanently deleted items cannot be recovered.</span>
+      </div>
+    </div>
+
+    {% for rec in records %}
+    <div class="evidence-item fade-in">
+      {% set fname = rec.image_path.replace('\\','/').split('/')[-1] %}
+      <img class="evidence-thumb" src="/image/{{ fname }}" alt="Evidence"
+           onerror="this.outerHTML='<div class=evidence-thumb-placeholder>📷</div>'">
+      <div class="evidence-body">
+        <div class="evidence-meta">
+          <span class="evidence-time">🕐 {{ rec.timestamp }}</span>
+          <span class="badge badge-{{ rec.severity.lower() }}">{{ rec.severity }}</span>
+        </div>
+        <div style="font-size:0.78rem;color:var(--gray);margin-bottom:10px;">
+          Confidence: <strong style="color:var(--white)">{{ "%.0f"|format(rec.confidence * 100) }}%</strong>
+          &nbsp;·&nbsp; ID: <strong style="color:var(--white)">#{{ rec.id }}</strong>
+        </div>
+        <div class="evidence-actions">
+          <a href="/recycle/{{ rec.id }}/restore" class="btn btn-green">♻ Restore</a>
+          <a href="/recycle/{{ rec.id }}/permanent" class="btn btn-red"
+             onclick="return confirm('Permanently delete? This CANNOT be undone.')">🗑 Delete Forever</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="empty-icon">🗑</div>
+      <p>Recycle bin is empty.</p>
+    </div>
+  {% endif %}
+</div>
+<script>setTimeout(() => location.reload(), 15000);</script>
+{% endblock %}

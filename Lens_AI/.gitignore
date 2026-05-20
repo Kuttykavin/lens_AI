@@ -1,0 +1,18 @@
+# Sensitive files
+*.pem
+*.key
+*.db
+
+# Logs
+*.log
+security_log.txt
+
+# Evidence folder
+.evidence/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment files
+.env
